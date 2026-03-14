@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.env
+
+# Large output files (regenerate with: python extract_courses.py)
+extracted_courses.json
+extracted_courses.md
