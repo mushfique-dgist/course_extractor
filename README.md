@@ -1,50 +1,77 @@
-# Course Extractor
+<p align="center">
+  <h1 align="center">Course Extractor</h1>
+  <p align="center">
+    <strong>Scrape any university course catalog into structured data — automatically.</strong>
+  </p>
+  <p align="center">
+    <img src="https://img.shields.io/badge/python-3.8+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.8+">
+    <img src="https://img.shields.io/badge/courses_extracted-508-success?style=flat-square" alt="508 courses">
+    <img src="https://img.shields.io/badge/errors-0-brightgreen?style=flat-square" alt="0 errors">
+    <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT License">
+  </p>
+</p>
 
-A Python CLI tool that scrapes university course catalogs and produces structured JSON and Markdown output -- built for feeding course data into downstream pipelines and LLMs.
+---
 
-## What It Does
+A Python CLI tool that scrapes university course catalogs and produces structured **JSON** and **Markdown** output — built for feeding course data into downstream pipelines and LLMs.
 
-Given a list of university course catalog URLs, the tool automatically detects the best extraction strategy and pulls structured course records:
+> **Validated:** 508 courses extracted from Harvard DCE with zero errors.
 
-1. **FOSE API auto-detection** -- If the site runs a FOSE-powered catalog (e.g., Harvard DCE), the tool discovers the API endpoint from the page source and queries it directly for complete course data including descriptions, instructors, schedules, and tuition.
-2. **JSON-LD parsing** -- Extracts `Course` and `CourseInstance` structured data from `<script type="application/ld+json">` tags.
-3. **HTML heuristic extraction** -- Falls back to parsing label-value pairs from `dt/dd`, `th/td`, and colon-separated text, matched against known field patterns for course codes, instructors, credits, prerequisites, etc.
-4. **Listing page crawling** -- Detects catalog listing pages and follows links to individual course pages.
+## Highlights
 
-## Features
+- **Multi-strategy extraction** — Automatically selects the best scraping approach per site
+- **FOSE API auto-detection** — Discovers hidden API endpoints in JavaScript-rendered catalogs (no browser needed)
+- **JSON-LD + HTML heuristic fallback** — Handles structured data and raw HTML label-value parsing
+- **20+ fields per course** — Title, code, description, instructors, schedule, credits, tuition, prerequisites, dates, and more
+- **Deduplication** — Merges duplicate records across listing pages
+- **Polite crawling** — Configurable delays and timeouts
+- **Single file, minimal deps** — One Python file (~900 lines), only `requests` + `beautifulsoup4`
 
-- Multi-strategy extraction with automatic strategy selection
-- Handles JavaScript-rendered FOSE catalogs via direct API calls (no browser needed)
-- Extracts 20+ structured fields per course (title, code, description, instructors, schedule, credits, tuition, prerequisites, dates, etc.)
-- Deduplicates courses across pages
-- Polite crawling with configurable delays
-- Dual output: machine-readable JSON + human-readable Markdown
-- Single-file, no complex dependencies
+## How It Works
 
-## Validated Results
+```
+Input URLs (course_websites.txt)
+        |
+        v
+  Fetch HTML page
+        |
+        v
+  Is FOSE catalog? ──yes──> Query FOSE API (search + details per course)
+        |                          |
+        no                         v
+        |                   Structured course records
+        v
+  Has JSON-LD? ──yes──> Parse structured data
+        |                     |
+        no                    v
+        |              Course records
+        v
+  HTML heuristic extraction (label-value pairs, regex patterns)
+        |
+        v
+  Is listing page? ──yes──> Follow course links, extract each
+        |
+        v
+  Deduplicate & merge
+        |
+        v
+  Output JSON + Markdown
+```
 
-Tested against Harvard DCE (`courses.dce.harvard.edu`): **508 courses extracted, 0 errors**.
-
-## Installation
+## Quick Start
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Dependencies: `requests`, `beautifulsoup4`
-
-## Usage
-
-### Basic
-
-Create a `course_websites.txt` file with one URL per line (lines starting with `#` are ignored):
+Create a `course_websites.txt` with one URL per line:
 
 ```txt
 https://courses.dce.harvard.edu/
 https://example.edu/summer/programs
 ```
 
-Run the extractor:
+Run it:
 
 ```bash
 python extract_courses.py
@@ -52,30 +79,20 @@ python extract_courses.py
 
 ### CLI Options
 
-```bash
-# Custom input/output paths
-python extract_courses.py --input urls.txt --output-json out.json --output-md out.md
+| Flag | Description |
+|---|---|
+| `--input FILE` | Custom input file (default: `course_websites.txt`) |
+| `--output-json FILE` | JSON output path |
+| `--output-md FILE` | Markdown output path |
+| `--all-fose-terms` | Fetch all terms from FOSE catalogs |
+| `--max-api-courses-per-term N` | Limit courses per FOSE term |
+| `--no-api-details` | Skip per-course API detail calls (faster) |
+| `--no-crawl-listings` | Don't follow links on listing pages |
+| `--allow-cross-domain` | Follow links to external domains |
+| `--timeout N` | Request timeout in seconds |
+| `--delay-seconds N` | Delay between requests |
 
-# FOSE catalogs: fetch all terms instead of just the default
-python extract_courses.py --all-fose-terms
-
-# FOSE catalogs: limit to 100 courses per term
-python extract_courses.py --max-api-courses-per-term 100
-
-# FOSE catalogs: skip detailed per-course API calls (faster, less data)
-python extract_courses.py --no-api-details
-
-# Disable listing-page crawling
-python extract_courses.py --no-crawl-listings
-
-# Allow following links to external domains
-python extract_courses.py --allow-cross-domain
-
-# Adjust request timeout and crawl delay
-python extract_courses.py --timeout 30 --delay-seconds 0.5
-```
-
-### Example Output (JSON, abridged)
+### Example Output
 
 ```json
 {
@@ -92,39 +109,6 @@ python extract_courses.py --timeout 30 --delay-seconds 0.5
   "prerequisites": "None"
 }
 ```
-
-## How It Works
-
-```
-Input URLs (course_websites.txt)
-        |
-        v
-  Fetch HTML page
-        |
-        v
-  Is FOSE catalog? --yes--> Query FOSE API (search + details per course)
-        |                          |
-        no                         v
-        |                   Structured course records
-        v
-  Has JSON-LD? --yes--> Parse structured data
-        |                     |
-        no                    v
-        |              Course records
-        v
-  HTML heuristic extraction (label-value pairs, regex patterns)
-        |
-        v
-  Is listing page? --yes--> Follow course links, extract each
-        |
-        v
-  Deduplicate & merge
-        |
-        v
-  Output JSON + Markdown
-```
-
-The tool is a single Python file (`extract_courses.py`, ~900 lines) with no framework dependencies beyond `requests` and `beautifulsoup4`.
 
 ## License
 
